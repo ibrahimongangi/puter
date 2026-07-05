@@ -1,0 +1,978 @@
+<title>Order Flow Chart — ES Futures</title>
+<style>
+/* ── Reset & Root ─────────────────────────────── */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  /* Palette — navy-black terminal */
+  --bg:      #080b12;
+  --surf:    #0e1219;
+  --surf2:   #141820;
+  --surf3:   #1a2030;
+  --bdr:     #232b3d;
+  --bdr2:    #2d3750;
+  --text:    #d8e0f0;
+  --muted:   #6a7a9a;
+  --muted2:  #374258;
+  --green:   #00d97e;
+  --red:     #ff4858;
+  --amber:   #f0b429;
+  --violet:  #7c5cbf;
+  --blue:    #4d82e8;
+  --bull-b:  #00b368;
+  --bull-w:  #00d97e;
+  --bear-b:  #e03348;
+  --bear-w:  #ff4858;
+  --imb-ask: rgba(0,217,126,0.18);
+  --imb-bid: rgba(255,72,88,0.18);
+  --vp:      rgba(77,130,232,0.16);
+  --vp-va:   rgba(77,130,232,0.38);
+  --d-pos:   rgba(0,179,104,0.72);
+  --d-neg:   rgba(224,51,72,0.72);
+  --xhair:   rgba(216,224,240,0.14);
+}
+
+html, body {
+  height: 100%; width: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Cascadia Code','SF Mono','Fira Code',ui-monospace,monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── App shell ───────────────────────────────── */
+#app { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+
+/* ── Toolbar ─────────────────────────────────── */
+#tb {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 14px; height: 44px; flex-shrink: 0;
+  background: var(--surf); border-bottom: 1px solid var(--bdr);
+  position: relative;
+  /* 1px accent rail — the single flourish */
+  box-shadow: inset 0 1px 0 0 var(--green);
+}
+#tb::before {
+  content:''; position:absolute; inset:0 0 auto 0; height:1px;
+  background: linear-gradient(90deg, var(--green) 0%, var(--violet) 100%);
+  opacity: .45;
+}
+
+.sym  { font-size:14px; font-weight:700; letter-spacing:2px; color:var(--text); }
+.mark { font-size:10px; color:var(--muted); letter-spacing:.5px; }
+.sep  { width:1px; height:20px; background:var(--bdr2); flex-shrink:0; }
+.px-badge { font-size:17px; font-weight:700; color:var(--amber); min-width:70px; letter-spacing:.5px; }
+.chg  { font-size:10px; font-weight:600; padding:2px 7px; border-radius:3px; letter-spacing:.3px; }
+.chg.up { background:rgba(0,217,126,.13); color:var(--green); }
+.chg.dn { background:rgba(255,72,88,.13); color:var(--red); }
+
+.stat { display:flex; flex-direction:column; gap:1px; min-width:54px; }
+.sl   { font-size:8px; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; }
+.sv   { font-size:11px; }
+.sv.up{ color:var(--green); } .sv.dn{ color:var(--red); }
+
+.ctl {
+  background:var(--surf2); border:1px solid var(--bdr); color:var(--text);
+  padding:3px 9px; border-radius:3px; cursor:pointer;
+  font:inherit; font-size:10px; letter-spacing:.3px;
+  transition: border-color .15s;
+}
+.ctl:hover { border-color:var(--blue); }
+.ctl:focus-visible { outline: 2px solid var(--blue); outline-offset:2px; }
+.ml { margin-left:auto; }
+
+/* live indicator */
+#dot { width:6px; height:6px; border-radius:50%; background:var(--green); flex-shrink:0; }
+#dot.live  { animation: blink 1.4s ease-in-out infinite; }
+#dot.off   { background:var(--muted); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+/* ── Layout ──────────────────────────────────── */
+#layout { display:flex; flex:1; min-height:0; }
+#chart-col { display:flex; flex-direction:column; flex:1; min-width:0; }
+
+#main-wrap {
+  flex:1; position:relative; overflow:hidden;
+  cursor: crosshair;
+}
+#main-canvas { position:absolute; top:0; left:0; display:block; }
+
+#delta-wrap {
+  height:112px; flex-shrink:0;
+  position:relative; border-top:1px solid var(--bdr);
+}
+#delta-canvas { position:absolute; top:0; left:0; display:block; }
+
+/* ── DOM Ladder ──────────────────────────────── */
+#dom {
+  width:210px; flex-shrink:0;
+  background:var(--surf); border-left:1px solid var(--bdr);
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.dom-hdr {
+  padding:5px 10px 4px; border-bottom:1px solid var(--bdr);
+  display:flex; align-items:baseline; gap:6px;
+}
+.dom-title { font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); }
+.dom-sub   { font-size:8px; color:var(--muted2); letter-spacing:.4px; }
+.dom-cols  {
+  display:grid; grid-template-columns:70px 70px 70px;
+  padding:3px 6px; font-size:8px; color:var(--muted2);
+  text-transform:uppercase; letter-spacing:.6px;
+  border-bottom:1px solid var(--bdr);
+}
+.dom-cols span:first-child { text-align:right; }
+.dom-cols span:nth-child(2){ text-align:center; }
+
+#dom-rows { flex:1; overflow:hidden; }
+
+.dr {
+  display:grid; grid-template-columns:70px 70px 70px;
+  padding:1px 6px; height:17px; align-items:center;
+  position:relative; font-size:10px;
+}
+.dr-bb { position:absolute; right:50%; top:0; bottom:0; background:rgba(255,72,88,.10); pointer-events:none; }
+.dr-ab { position:absolute; left:50%; top:0; bottom:0; background:rgba(0,217,126,.10); pointer-events:none; }
+.dr-bid { text-align:right; color:var(--red); }
+.dr-ask { color:var(--green); }
+.dr-px  { text-align:center; color:var(--muted); font-size:9px; }
+.dr.cp  {
+  background:rgba(240,180,41,.07);
+  border-top:1px solid rgba(240,180,41,.35);
+  border-bottom:1px solid rgba(240,180,41,.35);
+}
+.dr.cp .dr-px { color:var(--amber); font-weight:700; font-size:10px; }
+
+/* ── DOM stats strip ─────────────────────────── */
+#dom-stats {
+  border-top:1px solid var(--bdr);
+  padding:7px 10px; display:flex; flex-direction:column; gap:4px;
+}
+.ds { display:flex; justify-content:space-between; font-size:9px; }
+.ds-k { color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+.ds-v { font-weight:600; }
+.ds-v.up{color:var(--green);} .ds-v.dn{color:var(--red);}
+
+/* ── Legend ──────────────────────────────────── */
+#legend {
+  display:flex; align-items:center; gap:12px;
+  padding:0 14px; height:20px; flex-shrink:0;
+  background:var(--surf); border-top:1px solid var(--bdr);
+  font-size:8px; color:var(--muted); letter-spacing:.3px;
+}
+.lg-i { display:flex; align-items:center; gap:4px; }
+.lg-sq { width:7px; height:7px; border-radius:1px; flex-shrink:0; }
+.lg-hint { margin-left:auto; color:var(--muted2); font-size:7px; letter-spacing:.5px; }
+
+/* ── Tooltip ─────────────────────────────────── */
+#tt {
+  position:fixed; background:var(--surf3); border:1px solid var(--bdr2);
+  border-radius:4px; padding:8px 11px; font-size:10px;
+  pointer-events:none; z-index:999; display:none; min-width:158px;
+  box-shadow:0 8px 24px rgba(0,0,0,.55);
+}
+.tt-hdr { color:var(--muted); margin-bottom:5px; font-size:8px; text-transform:uppercase; letter-spacing:.6px; }
+.tt-r   { display:flex; justify-content:space-between; gap:14px; margin-bottom:2px; }
+.tt-k   { color:var(--muted); }
+.tt-v   { font-weight:600; }
+.tt-v.up{color:var(--green);}.tt-v.dn{color:var(--red);}.tt-v.amb{color:var(--amber);}.tt-v.vio{color:var(--violet);}
+</style>
+
+<div id="app">
+
+  <div id="tb">
+    <div id="dot" class="live"></div>
+    <span class="sym">ES</span>
+    <span class="mark">E-MINI S&amp;P 500 · CME</span>
+    <span class="sep"></span>
+    <span class="px-badge" id="tb-px">4500.00</span>
+    <span class="chg up" id="tb-chg">+0.00 (0.00%)</span>
+    <span class="sep"></span>
+    <div class="stat"><span class="sl">Volume</span><span class="sv" id="tb-vol">—</span></div>
+    <div class="stat"><span class="sl">Delta</span><span class="sv" id="tb-delta">—</span></div>
+    <div class="stat"><span class="sl">Cum Δ</span><span class="sv" id="tb-cum">—</span></div>
+    <div class="stat"><span class="sl">High</span><span class="sv" id="tb-hi">—</span></div>
+    <div class="stat"><span class="sl">Low</span><span class="sv" id="tb-lo">—</span></div>
+    <span class="sep"></span>
+    <select class="ctl" id="sel-tf"><option value="60">1m</option><option value="300">5m</option><option value="900">15m</option></select>
+    <select class="ctl" id="sel-mode"><option value="fp">Footprint</option><option value="cd">Candlestick</option></select>
+    <button class="ctl ml" id="btn-pause">⏸ Pause</button>
+    <button class="ctl"    id="btn-reset">⟳ Reset</button>
+  </div>
+
+  <div id="layout">
+    <div id="chart-col">
+      <div id="main-wrap"><canvas id="main-canvas"></canvas></div>
+      <div id="delta-wrap"><canvas id="delta-canvas"></canvas></div>
+    </div>
+
+    <div id="dom">
+      <div class="dom-hdr">
+        <span class="dom-title">DOM</span>
+        <span class="dom-sub">Depth of Market</span>
+      </div>
+      <div class="dom-cols"><span>Bid</span><span>Price</span><span>Ask</span></div>
+      <div id="dom-rows"></div>
+      <div id="dom-stats">
+        <div class="ds"><span class="ds-k">Best Bid</span><span class="ds-v" id="ds-bid">—</span></div>
+        <div class="ds"><span class="ds-k">Best Ask</span><span class="ds-v" id="ds-ask">—</span></div>
+        <div class="ds"><span class="ds-k">Spread</span><span class="ds-v" id="ds-spr">—</span></div>
+        <div class="ds"><span class="ds-k">B/A Imbal</span><span class="ds-v" id="ds-imb">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="legend">
+    <div class="lg-i"><div class="lg-sq" style="background:var(--green)"></div>Ask / Buy vol</div>
+    <div class="lg-i"><div class="lg-sq" style="background:var(--red)"></div>Bid / Sell vol</div>
+    <div class="lg-i"><div class="lg-sq" style="background:rgba(240,180,41,.7)"></div>POC</div>
+    <div class="lg-i"><div class="lg-sq" style="background:rgba(124,92,191,.7)"></div>VWAP</div>
+    <div class="lg-i"><div class="lg-sq" style="background:var(--vp-va)"></div>Value Area</div>
+    <span class="lg-hint">SCROLL pan · CTRL+SCROLL zoom bars · SHIFT+SCROLL row height · RIGHT-CLICK lock price</span>
+  </div>
+</div>
+
+<div id="tt"></div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════
+const TICK  = 0.25;
+const BASE  = 4500;
+const IMBR  = 3.0;   // imbalance threshold
+const VA_PC = 0.70;  // value area 70%
+const DOM_LVL = 19;
+
+const C = {
+  bg:'#080b12', surf:'#0e1219', surf2:'#141820', surf3:'#1a2030',
+  bdr:'#232b3d', bdr2:'#2d3750',
+  text:'#d8e0f0', muted:'#6a7a9a', muted2:'#374258',
+  green:'#00d97e', red:'#ff4858', amber:'#f0b429',
+  violet:'rgba(124,92,191,0.85)', blue:'#4d82e8',
+  bullB:'#00b368', bullW:'#00d97e',
+  bearB:'#e03348', bearW:'#ff4858',
+  imbAsk:'rgba(0,217,126,0.19)', imbBid:'rgba(255,72,88,0.19)',
+  poc:'#f0b429',
+  vp:  'rgba(77,130,232,0.15)', vpVA:'rgba(77,130,232,0.38)',
+  dPos:'rgba(0,179,104,0.72)',   dNeg:'rgba(224,51,72,0.72)',
+  xhair:'rgba(216,224,240,0.13)',
+  grid:'#111621', gridMi:'#0d1018',
+};
+
+const VP_W   = 106;
+const PX_AX  = 66;
+const PAD_L  = 4;
+const TIME_H = 26;
+
+// ═══════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════
+const snap = v => Math.round(v / TICK) * TICK;
+const fmtV = n => {
+  const a = Math.abs(n);
+  if (a >= 10000) return (n/1000).toFixed(0)+'k';
+  if (a >= 1000)  return (n/1000).toFixed(1)+'k';
+  return String(n);
+};
+const fmtP = n => n.toFixed(2);
+
+// ═══════════════════════════════════
+// MARKET SIMULATOR
+// ═══════════════════════════════════
+class Sim {
+  constructor() {
+    this.price = BASE;
+    this.trend = 0;
+    this.vol   = 0.55;
+    this._tAge = 0;
+    this.barTime = Date.now();
+  }
+  _tick() {
+    if (++this._tAge > 60 + Math.random()*130) {
+      this._tAge = 0;
+      this.trend = (Math.random()-.5) * 1.8;
+      this.vol   = 0.25 + Math.random()*.85;
+    }
+    const rev   = (this.price - BASE) * -0.02;
+    const noise = (Math.random()-.5) * this.vol;
+    const drift = this.trend * 0.16;
+    this.price  = snap(this.price + (noise + drift + rev) * TICK);
+    this.price  = Math.max(BASE-28, Math.min(BASE+28, this.price));
+    const isBuy = Math.random() > (0.5 - this.trend * 0.09);
+    const size  = Math.max(1, Math.round(Math.exp(Math.random()*2.7+0.3)));
+    return { price: this.price, size, side: isBuy ? 'buy' : 'sell' };
+  }
+  openBar(t) {
+    return { time:t, open:this.price, high:this.price, low:this.price,
+             close:this.price, volume:0, buyVol:0, sellVol:0, delta:0,
+             fp: new Map(), poc:this.price, pocVol:0 };
+  }
+  _applyTick(bar, tk) {
+    bar.close  = tk.price;
+    bar.high   = Math.max(bar.high,  tk.price);
+    bar.low    = Math.min(bar.low,   tk.price);
+    bar.volume += tk.size;
+    if (tk.side==='buy') bar.buyVol += tk.size; else bar.sellVol += tk.size;
+    bar.delta  = bar.buyVol - bar.sellVol;
+    if (!bar.fp.has(tk.price)) bar.fp.set(tk.price, {bid:0,ask:0});
+    const fp = bar.fp.get(tk.price);
+    if (tk.side==='buy') fp.ask += tk.size; else fp.bid += tk.size;
+    const tot = fp.bid + fp.ask;
+    if (tot > bar.pocVol) { bar.poc = tk.price; bar.pocVol = tot; }
+  }
+  fillBar(bar, n) { for(let i=0;i<n;i++) this._applyTick(bar, this._tick()); }
+  addTick(bar)    { this._applyTick(bar, this._tick()); return this.price; }
+  history(n) {
+    this.barTime = Date.now() - n*60000;
+    const bars = [];
+    for (let i=0;i<n;i++) {
+      const b = this.openBar(this.barTime);
+      this.fillBar(b, 160+Math.floor(Math.random()*380));
+      bars.push(b);
+      this.barTime += 60000;
+    }
+    return bars;
+  }
+}
+
+// ═══════════════════════════════════
+// STATE
+// ═══════════════════════════════════
+const st = {
+  bars:[], live:null, price:BASE,
+  scrollX:0, barW:84, rowH:13,
+  pMin:BASE-8, pMax:BASE+8, pLocked:false,
+  mode:'fp',
+  paused:false,
+  mx:-1, my:-1, drag:false, dsx:0, dsScroll:0,
+  sesOpen:BASE, sesHi:BASE, sesLo:BASE,
+  barTick:0, BAR_TICKS:215,
+};
+const sim = new Sim();
+
+// ═══════════════════════════════════
+// CANVAS SETUP
+// ═══════════════════════════════════
+const MC   = document.getElementById('main-canvas');
+const DC   = document.getElementById('delta-canvas');
+const mCtx = MC.getContext('2d');
+const dCtx = DC.getContext('2d');
+let MW=0, MH=0, DW=0, DH=0, vpX=0, chartW=0, chartH=0;
+
+function resize() {
+  const mw = document.getElementById('main-wrap');
+  const dw = document.getElementById('delta-wrap');
+  const dpr = window.devicePixelRatio || 1;
+  MW = mw.clientWidth;  MH = mw.clientHeight;
+  DW = dw.clientWidth;  DH = dw.clientHeight;
+  // Use logical pixels for simplicity (avoids coordinate scaling complexity)
+  MC.width = MW; MC.height = MH;
+  DC.width = DW; DC.height = DH;
+  vpX    = MW - VP_W - PX_AX;
+  chartW = vpX - PAD_L;
+  chartH = MH - TIME_H;
+}
+
+// ═══════════════════════════════════
+// COORDINATES
+// ═══════════════════════════════════
+const visBars  = () => Math.max(1, Math.floor(chartW / st.barW));
+const startIdx = () => Math.max(0, totalBars() - visBars() - st.scrollX);
+const totalBars= () => st.bars.length + (st.live ? 1 : 0);
+
+function getBar(i) {
+  if (i < st.bars.length) return st.bars[i];
+  if (i === st.bars.length && st.live) return st.live;
+  return null;
+}
+function barX(idx) { return PAD_L + (idx - startIdx()) * st.barW + st.barW*.5; }
+function pToY(p)   { const r=st.pMax-st.pMin; return r ? chartH*(st.pMax-p)/r : chartH*.5; }
+function yToP(y)   { const r=st.pMax-st.pMin; return st.pMax-(y/chartH)*r; }
+function xToIdx(x) { return startIdx() + Math.floor((x-PAD_L)/st.barW); }
+
+// ═══════════════════════════════════
+// PRICE RANGE
+// ═══════════════════════════════════
+function updateRange() {
+  if (st.pLocked) return;
+  const s = startIdx(), e = s + visBars() + 1;
+  let lo=Infinity, hi=-Infinity;
+  for (let i=s; i<e; i++) {
+    const b=getBar(i); if(!b) continue;
+    lo=Math.min(lo,b.low); hi=Math.max(hi,b.high);
+  }
+  if (lo===Infinity) return;
+  const pad = Math.max((hi-lo)*.13, 2);
+  st.pMin = Math.floor((lo-pad)/TICK)*TICK;
+  st.pMax = Math.ceil((hi+pad)/TICK)*TICK;
+}
+
+function gridStep() {
+  const r=st.pMax-st.pMin, t=7, raw=r/t;
+  for (const s of [0.25,0.5,1,2,5,10,25,50]) if(s>=raw) return s;
+  return 50;
+}
+
+// ═══════════════════════════════════
+// VOLUME PROFILE
+// ═══════════════════════════════════
+function buildVP(s, e) {
+  const map=new Map(); let tot=0, maxV=0;
+  for (let i=s; i<=e; i++) {
+    const b=getBar(i); if(!b) continue;
+    b.fp.forEach((v,p)=>{
+      const nv=(map.get(p)||0)+v.bid+v.ask;
+      map.set(p,nv); tot+=v.bid+v.ask;
+      if(nv>maxV) maxV=nv;
+    });
+  }
+  let poc=0, pocV=0;
+  map.forEach((v,p)=>{ if(v>pocV){poc=p;pocV=v;} });
+  const sorted=[...map.entries()].sort((a,b)=>b[1]-a[1]);
+  let vaV=0; const vaSet=new Set();
+  for(const[p,v] of sorted){ vaV+=v; vaSet.add(p); if(vaV>=tot*VA_PC) break; }
+  const vaPx=[...vaSet].sort((a,b)=>a-b);
+  return { map, maxV, poc, vah:vaPx[vaPx.length-1]||poc, val:vaPx[0]||poc };
+}
+
+// ═══════════════════════════════════
+// DRAW: GRID
+// ═══════════════════════════════════
+function drawGrid(ctx) {
+  const step=gridStep(); let p=Math.ceil(st.pMin/step)*step;
+  ctx.strokeStyle=C.grid; ctx.lineWidth=1;
+  while(p<=st.pMax) {
+    const y=pToY(p);
+    if(y>=0&&y<=chartH) {
+      ctx.globalAlpha=.5; ctx.beginPath();
+      ctx.moveTo(PAD_L,y); ctx.lineTo(vpX,y); ctx.stroke();
+    }
+    p=snap(p+step);
+  }
+  ctx.globalAlpha=1;
+}
+
+// ═══════════════════════════════════
+// DRAW: VWAP
+// ═══════════════════════════════════
+function drawVWAP(ctx, s, e) {
+  let sumPV=0, sumV=0;
+  ctx.strokeStyle=C.violet; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
+  ctx.beginPath(); let first=true;
+  for(let i=0;i<=e&&i<=st.bars.length;i++){
+    const b=getBar(i); if(!b) continue;
+    const tp=(b.high+b.low+b.close)/3;
+    sumPV+=tp*b.volume; sumV+=b.volume;
+    if(i<s) continue;
+    const vwap=sumV?sumPV/sumV:b.close;
+    const x=barX(i), y=pToY(vwap);
+    if(y<0||y>chartH||x<PAD_L||x>vpX) continue;
+    first ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    first=false;
+  }
+  ctx.stroke(); ctx.setLineDash([]);
+  if(!first){
+    let sv=0,spv=0;
+    for(let i=0;i<=e&&i<=st.bars.length;i++){const b=getBar(i);if(!b)continue;const tp=(b.high+b.low+b.close)/3;spv+=tp*b.volume;sv+=b.volume;}
+    const vv=sv?spv/sv:BASE, vy=pToY(vv);
+    if(vy>6&&vy<chartH-6){
+      ctx.fillStyle='#7c5cbf'; ctx.font='8px monospace';
+      ctx.textAlign='right'; ctx.textBaseline='middle';
+      ctx.fillText('VWAP', vpX-3, vy-8);
+    }
+  }
+}
+
+// ═══════════════════════════════════
+// DRAW: FOOTPRINT BAR
+// ═══════════════════════════════════
+function drawFPBar(ctx, bar, idx) {
+  const cx=barX(idx), bw=st.barW, half=bw*.5;
+  const hiT=Math.round(bar.high/TICK), loT=Math.round(bar.low/TICK);
+  let maxFP=1;
+  bar.fp.forEach(v=>maxFP=Math.max(maxFP,v.bid,v.ask));
+
+  for(let t=hiT; t>=loT; t--) {
+    const p=t*TICK, y=pToY(p), rH=st.rowH, rT=y-rH*.5;
+    if(rT>chartH+rH||rT+rH<-rH) continue;
+
+    const fp=bar.fp.get(p)||{bid:0,ask:0};
+    const {bid,ask}=fp, tot=bid+ask;
+    const imbAsk=ask>0&&bid>0&&ask/bid>=IMBR;
+    const imbBid=bid>0&&ask>0&&bid/ask>=IMBR;
+    const isPOC=p===bar.poc&&tot>0;
+
+    // Cell background
+    if(isPOC){
+      ctx.fillStyle='rgba(240,180,41,0.09)';
+      ctx.fillRect(cx-half+1,rT,bw-2,rH);
+    }else if(imbAsk){
+      ctx.fillStyle=C.imbAsk; ctx.fillRect(cx-half+1,rT,bw-2,rH);
+    }else if(imbBid){
+      ctx.fillStyle=C.imbBid; ctx.fillRect(cx-half+1,rT,bw-2,rH);
+    }
+
+    // Mini volume bars
+    if(bw>=50&&tot>0){
+      const bBw=Math.max(1,bid/maxFP*(half-7));
+      const aBw=Math.max(1,ask/maxFP*(half-7));
+      if(bid>0){
+        ctx.fillStyle=imbBid?'rgba(255,72,88,.42)':'rgba(255,72,88,.16)';
+        ctx.fillRect(cx-half+2,rT+1,bBw,rH-2);
+      }
+      if(ask>0){
+        ctx.fillStyle=imbAsk?'rgba(0,217,126,.42)':'rgba(0,217,126,.16)';
+        ctx.fillRect(cx+2,rT+1,aBw,rH-2);
+      }
+    }
+
+    // Text
+    if(rH>=10&&bw>=46){
+      const fz=Math.max(8,Math.min(10,rH-2));
+      ctx.font=`${fz}px 'Cascadia Code',monospace`;
+      ctx.textBaseline='middle';
+      const ty=rT+rH*.5;
+      if(bid>0){
+        ctx.fillStyle=imbBid?C.red:C.muted;
+        ctx.textAlign='right'; ctx.fillText(fmtV(bid),cx-2,ty);
+      }
+      if(ask>0){
+        ctx.fillStyle=imbAsk?C.green:C.muted;
+        ctx.textAlign='left'; ctx.fillText(fmtV(ask),cx+2,ty);
+      }
+      if(!bid&&!ask){
+        ctx.fillStyle=C.muted2; ctx.textAlign='center';
+        ctx.fillText('·',cx,ty);
+      }
+    }
+
+    // POC dashed border
+    if(isPOC){
+      ctx.strokeStyle=C.poc; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+      ctx.beginPath();
+      ctx.moveTo(cx-half+1,rT); ctx.lineTo(cx+half-1,rT);
+      ctx.moveTo(cx-half+1,rT+rH); ctx.lineTo(cx+half-1,rT+rH);
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    // Row separator
+    if(rH>=9){
+      ctx.strokeStyle=C.gridMi; ctx.lineWidth=.5; ctx.globalAlpha=.3;
+      ctx.beginPath();
+      ctx.moveTo(cx-half,rT+rH-.5); ctx.lineTo(cx+half,rT+rH-.5);
+      ctx.stroke(); ctx.globalAlpha=1;
+    }
+  }
+
+  // Candle overlay
+  const hy=pToY(bar.high), ly=pToY(bar.low);
+  const oy=pToY(bar.open), cy2=pToY(bar.close);
+  const bull=bar.close>=bar.open;
+  const bT=Math.min(oy,cy2), bH=Math.max(2,Math.abs(cy2-oy));
+  const bW=Math.max(3,Math.min(8,bw*.075));
+
+  ctx.strokeStyle=bull?C.bullW:C.bearW; ctx.lineWidth=1.5;
+  ctx.beginPath();
+  ctx.moveTo(cx,hy); ctx.lineTo(cx,bT-1);
+  ctx.moveTo(cx,bT+bH+1); ctx.lineTo(cx,ly);
+  ctx.stroke();
+
+  ctx.fillStyle=bull?C.bullB:C.bearB;
+  ctx.fillRect(cx-bW*.5,bT,bW,bH);
+
+  // Delta tag
+  if(bw>=44){
+    const dtY=Math.min(chartH-6,ly+12);
+    ctx.font='bold 8px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle=bar.delta>=0?C.green:C.red;
+    ctx.fillText((bar.delta>=0?'+':'')+fmtV(bar.delta),cx,dtY);
+  }
+
+  // Column separator
+  ctx.strokeStyle=C.bdr; ctx.lineWidth=.5; ctx.globalAlpha=.5;
+  ctx.beginPath(); ctx.moveTo(cx-half,0); ctx.lineTo(cx-half,chartH);
+  ctx.stroke(); ctx.globalAlpha=1;
+}
+
+// ═══════════════════════════════════
+// DRAW: CANDLESTICK
+// ═══════════════════════════════════
+function drawCDBar(ctx, bar, idx) {
+  const cx=barX(idx), bw=st.barW;
+  const hy=pToY(bar.high), ly=pToY(bar.low);
+  const oy=pToY(bar.open), cy2=pToY(bar.close);
+  const bull=bar.close>=bar.open;
+  const bT=Math.min(oy,cy2), bH=Math.max(2,Math.abs(cy2-oy));
+  const bW=bw*.68;
+  ctx.strokeStyle=bull?C.bullW:C.bearW; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(cx,hy); ctx.lineTo(cx,ly); ctx.stroke();
+  ctx.fillStyle=bull?C.bullB:C.bearB;
+  ctx.fillRect(cx-bW*.5,bT,bW,bH);
+}
+
+// ═══════════════════════════════════
+// DRAW: VOLUME PROFILE
+// ═══════════════════════════════════
+function drawVP(ctx, vp) {
+  ctx.fillStyle=C.surf; ctx.fillRect(vpX,0,VP_W,chartH);
+  ctx.strokeStyle=C.bdr; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(vpX,0); ctx.lineTo(vpX,chartH); ctx.stroke();
+  if(!vp||!vp.maxV) return;
+  const bW=VP_W-8;
+  vp.map.forEach((vol,p)=>{
+    const y=pToY(p), rH=st.rowH, rT=y-rH*.5;
+    if(rT>chartH||rT+rH<0) return;
+    const w=Math.max(1,vol/vp.maxV*(bW-2));
+    const isVA=p>=vp.val&&p<=vp.vah;
+    ctx.fillStyle=isVA?C.vpVA:C.vp;
+    ctx.fillRect(vpX+3,rT+1,w,rH-2);
+    if(p===vp.poc){
+      ctx.strokeStyle=C.poc; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(vpX+2,y); ctx.lineTo(vpX+VP_W-4,y); ctx.stroke();
+    }
+  });
+  [[vp.vah,'VAH'],[vp.val,'VAL']].forEach(([p,lbl])=>{
+    const y=pToY(p); if(y<4||y>chartH-4) return;
+    ctx.strokeStyle='rgba(77,130,232,0.35)'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(PAD_L,y); ctx.lineTo(vpX-1,y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=C.blue; ctx.font='7px monospace';
+    ctx.textAlign='right'; ctx.textBaseline=lbl==='VAH'?'bottom':'top';
+    ctx.fillText(lbl,vpX-3,y+(lbl==='VAH'?-1:1));
+  });
+}
+
+// ═══════════════════════════════════
+// DRAW: PRICE AXIS
+// ═══════════════════════════════════
+function drawPxAxis(ctx) {
+  const x0=vpX+VP_W;
+  ctx.fillStyle=C.surf2; ctx.fillRect(x0,0,PX_AX,chartH+TIME_H);
+  ctx.strokeStyle=C.bdr; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(x0,0); ctx.lineTo(x0,chartH+TIME_H); ctx.stroke();
+  const step=gridStep(); let p=Math.ceil(st.pMin/step)*step;
+  ctx.fillStyle=C.muted; ctx.font='9px monospace';
+  ctx.textAlign='left'; ctx.textBaseline='middle';
+  while(p<=st.pMax){
+    const y=pToY(p); if(y>=2&&y<=chartH-2) ctx.fillText(fmtP(p),x0+4,y);
+    p=snap(p+step);
+  }
+  const cp=st.price, cy=pToY(cp);
+  const bull=st.live?st.live.close>=st.live.open:true;
+  ctx.fillStyle=bull?C.green:C.red;
+  ctx.fillRect(x0,cy-9,PX_AX,18);
+  ctx.fillStyle='#000'; ctx.font='bold 10px monospace';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(fmtP(cp),x0+PX_AX*.5,cy);
+}
+
+// ═══════════════════════════════════
+// DRAW: TIME AXIS
+// ═══════════════════════════════════
+function drawTimeAxis(ctx, s, e) {
+  const y0=chartH;
+  ctx.fillStyle=C.surf2; ctx.fillRect(0,y0,vpX+VP_W,TIME_H);
+  ctx.strokeStyle=C.bdr; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,y0); ctx.lineTo(vpX+VP_W,y0); ctx.stroke();
+  const every=Math.max(1,Math.floor(70/st.barW));
+  ctx.fillStyle=C.muted; ctx.font='9px monospace';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  for(let i=s;i<=e;i++){
+    if((i-s)%every!==0) continue;
+    const b=getBar(i); if(!b) continue;
+    const x=barX(i); if(x<PAD_L+24||x>vpX-24) continue;
+    const d=new Date(b.time);
+    const ts=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+    ctx.fillText(ts,x,y0+TIME_H*.5);
+    ctx.strokeStyle=C.bdr; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x,y0+3); ctx.stroke();
+  }
+}
+
+// ═══════════════════════════════════
+// DRAW: CROSSHAIR
+// ═══════════════════════════════════
+function drawXhair(ctx) {
+  const {mx,my}=st;
+  if(mx<PAD_L||mx>vpX+VP_W||my<0||my>chartH) return;
+  ctx.strokeStyle=C.xhair; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(PAD_L,my); ctx.lineTo(vpX+VP_W,my); ctx.stroke();
+  if(mx<vpX){ ctx.beginPath(); ctx.moveTo(mx,0); ctx.lineTo(mx,chartH); ctx.stroke(); }
+  ctx.setLineDash([]);
+  const x0=vpX+VP_W, price=yToP(my);
+  ctx.fillStyle=C.surf3; ctx.strokeStyle=C.bdr2; ctx.lineWidth=1;
+  ctx.fillRect(x0,my-9,PX_AX,18); ctx.strokeRect(x0,my-9,PX_AX,18);
+  ctx.fillStyle=C.text; ctx.font='9px monospace';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(fmtP(price),x0+PX_AX*.5,my);
+}
+
+// ═══════════════════════════════════
+// RENDER: MAIN
+// ═══════════════════════════════════
+function renderMain() {
+  const ctx=mCtx;
+  ctx.fillStyle=C.bg; ctx.fillRect(0,0,MW,MH);
+  updateRange();
+  const s=startIdx(), e=s+visBars();
+  const vp=buildVP(s,e);
+  drawGrid(ctx);
+  drawVWAP(ctx,s,e);
+  for(let i=s;i<=e;i++){
+    const b=getBar(i); if(!b) continue;
+    st.mode==='fp' ? drawFPBar(ctx,b,i) : drawCDBar(ctx,b,i);
+  }
+  drawVP(ctx,vp);
+  drawPxAxis(ctx);
+  drawTimeAxis(ctx,s,e);
+  drawXhair(ctx);
+}
+
+// ═══════════════════════════════════
+// RENDER: DELTA
+// ═══════════════════════════════════
+function renderDelta() {
+  const ctx=dCtx; const W=DW, H=DH;
+  ctx.fillStyle=C.bg; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle=C.bdr; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(W,0); ctx.stroke();
+  ctx.fillStyle=C.muted; ctx.font='8px monospace';
+  ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('CUMULATIVE Δ',PAD_L+3,4);
+
+  const s=startIdx();
+  let cum=0; st.bars.slice(0,s).forEach(b=>cum+=b.delta);
+  const cds=[];
+  for(let i=s;i<=s+visBars();i++){const b=getBar(i);if(!b)break;cum+=b.delta;cds.push(cum);}
+  if(!cds.length) return;
+
+  const maxA=Math.max(...cds.map(Math.abs),1);
+  const zero=H*.5;
+  ctx.strokeStyle=C.bdr; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(PAD_L,zero); ctx.lineTo(W-PX_AX-VP_W,zero); ctx.stroke();
+
+  cum=0; st.bars.slice(0,s).forEach(b=>cum+=b.delta);
+  for(let i=s;i<=s+visBars();i++){
+    const b=getBar(i); if(!b) break;
+    cum+=b.delta;
+    const cx=barX(i), bh=Math.abs(cum)/maxA*(H*.44);
+    const by=cum>=0?zero-bh:zero;
+    const bw2=Math.max(1,st.barW-3);
+    ctx.fillStyle=cum>=0?C.dPos:C.dNeg;
+    ctx.fillRect(cx-bw2*.5,by,bw2,bh||1);
+  }
+
+  // Axis panel
+  ctx.fillStyle=C.surf2; ctx.fillRect(W-PX_AX-VP_W,0,PX_AX+VP_W,H);
+  ctx.strokeStyle=C.bdr; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(W-PX_AX-VP_W,0); ctx.lineTo(W-PX_AX-VP_W,H); ctx.stroke();
+
+  // Current cum delta label
+  const totCum=st.bars.reduce((s,b)=>s+b.delta,0)+(st.live?.delta||0);
+  ctx.fillStyle=totCum>=0?C.green:C.red; ctx.font='bold 8px monospace';
+  ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillText((totCum>=0?'+':'')+fmtV(totCum), PAD_L+3, zero+(totCum>=0?-10:10));
+}
+
+// ═══════════════════════════════════
+// DOM LADDER
+// ═══════════════════════════════════
+function renderDOM() {
+  const cp=st.price;
+  const rows=[];
+  for(let i=DOM_LVL;i>=-DOM_LVL;i--){
+    const p=snap(cp+i*TICK), dist=Math.abs(i);
+    const base=Math.max(0,(DOM_LVL-dist)*10);
+    const qty=Math.round(base+Math.random()*base*.65+(Math.random()<.05?350+Math.random()*500:0));
+    rows.push({p,qty,isAsk:i>0,isBid:i<0,isCur:i===0});
+  }
+  const maxQ=Math.max(...rows.map(r=>r.qty),1);
+  let html='', bidQ=0, askQ=0;
+  for(const r of rows){
+    const pct=(r.qty/maxQ*46).toFixed(1);
+    const cls=r.isCur?'dr cp':'dr';
+    let bH='',aH='',barH='';
+    if(r.isBid){bH=`<span class="dr-bid">${r.qty.toLocaleString()}</span>`;barH=`<div class="dr-bb" style="width:${pct}%"></div>`;bidQ+=r.qty;}
+    else bH='<span></span>';
+    if(r.isAsk){aH=`<span class="dr-ask">${r.qty.toLocaleString()}</span>`;barH=`<div class="dr-ab" style="width:${pct}%"></div>`;askQ+=r.qty;}
+    else aH='<span></span>';
+    if(r.isCur){bH='<span></span>';aH='<span></span>';}
+    html+=`<div class="${cls}">${barH}${bH}<span class="dr-px">${fmtP(r.p)}</span>${aH}</div>`;
+  }
+  document.getElementById('dom-rows').innerHTML=html;
+  const bestBid=snap(cp-TICK), bestAsk=snap(cp+TICK);
+  const imbal=askQ+bidQ>0?((askQ-bidQ)/(askQ+bidQ)*100).toFixed(1):'0.0';
+  document.getElementById('ds-bid').textContent=fmtP(bestBid);
+  document.getElementById('ds-ask').textContent=fmtP(bestAsk);
+  document.getElementById('ds-spr').textContent=fmtP(snap(bestAsk-bestBid));
+  const iEl=document.getElementById('ds-imb');
+  iEl.textContent=(parseFloat(imbal)>=0?'+':'')+imbal+'%';
+  iEl.className='ds-v '+(parseFloat(imbal)>=0?'up':'dn');
+}
+
+// ═══════════════════════════════════
+// TOOLTIP
+// ═══════════════════════════════════
+function updateTT() {
+  const el=document.getElementById('tt');
+  const{mx,my}=st;
+  if(mx<PAD_L||mx>vpX||my<0||my>chartH){el.style.display='none';return;}
+  const bar=getBar(xToIdx(mx)); if(!bar){el.style.display='none';return;}
+  const d=new Date(bar.time);
+  const ts=d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  const bull=bar.close>=bar.open; const dc=bar.delta>=0?'up':'dn';
+  el.innerHTML=`
+    <div class="tt-hdr">${ts} · ES · ${st.mode==='fp'?'Footprint':'Candle'}</div>
+    <div class="tt-r"><span class="tt-k">Open</span><span class="tt-v">${fmtP(bar.open)}</span></div>
+    <div class="tt-r"><span class="tt-k">High</span><span class="tt-v">${fmtP(bar.high)}</span></div>
+    <div class="tt-r"><span class="tt-k">Low</span><span class="tt-v">${fmtP(bar.low)}</span></div>
+    <div class="tt-r"><span class="tt-k">Close</span><span class="tt-v ${bull?'up':'dn'}">${fmtP(bar.close)}</span></div>
+    <div class="tt-r"><span class="tt-k">Volume</span><span class="tt-v">${bar.volume.toLocaleString()}</span></div>
+    <div class="tt-r"><span class="tt-k">Buy Vol</span><span class="tt-v up">${bar.buyVol.toLocaleString()}</span></div>
+    <div class="tt-r"><span class="tt-k">Sell Vol</span><span class="tt-v dn">${bar.sellVol.toLocaleString()}</span></div>
+    <div class="tt-r"><span class="tt-k">Delta</span><span class="tt-v ${dc}">${bar.delta>=0?'+':''}${bar.delta.toLocaleString()}</span></div>
+    <div class="tt-r"><span class="tt-k">POC</span><span class="tt-v amb">${fmtP(bar.poc)}</span></div>
+  `;
+  el.style.display='block';
+  const rect=MC.getBoundingClientRect();
+  let tx=rect.left+mx+14, ty=rect.top+my+14;
+  if(tx+170>window.innerWidth)  tx=rect.left+mx-182;
+  if(ty+215>window.innerHeight) ty=window.innerHeight-225;
+  el.style.left=tx+'px'; el.style.top=ty+'px';
+}
+
+// ═══════════════════════════════════
+// TOOLBAR
+// ═══════════════════════════════════
+function updateToolbar() {
+  const cp=st.price, op=st.sesOpen, ch=cp-op, pc=op?ch/op*100:0;
+  document.getElementById('tb-px').textContent=fmtP(cp);
+  const cEl=document.getElementById('tb-chg');
+  cEl.textContent=`${ch>=0?'+':''}${fmtP(ch)} (${ch>=0?'+':''}${pc.toFixed(2)}%)`;
+  cEl.className='chg '+(ch>=0?'up':'dn');
+  const totVol=st.bars.reduce((s,b)=>s+b.volume,0)+(st.live?.volume||0);
+  const curD=st.live?.delta||0;
+  const cumD=st.bars.reduce((s,b)=>s+b.delta,0)+curD;
+  document.getElementById('tb-vol').textContent=totVol.toLocaleString();
+  const dEl=document.getElementById('tb-delta');
+  dEl.textContent=(curD>=0?'+':'')+curD.toLocaleString(); dEl.className='sv '+(curD>=0?'up':'dn');
+  const cDEl=document.getElementById('tb-cum');
+  cDEl.textContent=(cumD>=0?'+':'')+cumD.toLocaleString(); cDEl.className='sv '+(cumD>=0?'up':'dn');
+  document.getElementById('tb-hi').textContent=fmtP(st.sesHi);
+  document.getElementById('tb-lo').textContent=fmtP(st.sesLo);
+}
+
+// ═══════════════════════════════════
+// SIM TICK
+// ═══════════════════════════════════
+function simTick() {
+  if(st.paused) return;
+  const n=4+Math.floor(Math.random()*7);
+  for(let i=0;i<n;i++){
+    if(!st.live) st.live=sim.openBar(sim.barTime);
+    const p=sim.addTick(st.live);
+    st.price=p; st.sesHi=Math.max(st.sesHi,p); st.sesLo=Math.min(st.sesLo,p);
+  }
+  st.barTick+=n;
+  if(st.barTick>=st.BAR_TICKS){
+    st.barTick=0;
+    if(st.live){ st.bars.push(st.live); sim.barTime+=60000; }
+    st.live=sim.openBar(sim.barTime);
+    if(st.bars.length>200) st.bars.shift();
+  }
+}
+
+// ═══════════════════════════════════
+// EVENTS
+// ═══════════════════════════════════
+function setupEvents() {
+  document.getElementById('main-wrap').addEventListener('mousemove',e=>{
+    const r=MC.getBoundingClientRect();
+    st.mx=e.clientX-r.left; st.my=e.clientY-r.top;
+    if(st.drag){
+      const dx=e.clientX-st.dsx;
+      st.scrollX=Math.max(0,st.dsScroll-Math.round(dx/st.barW));
+      st.pLocked=false;
+    }
+  });
+  document.getElementById('main-wrap').addEventListener('mousedown',e=>{
+    if(e.button===0){st.drag=true;st.dsx=e.clientX;st.dsScroll=st.scrollX;}
+  });
+  document.getElementById('main-wrap').addEventListener('contextmenu',e=>{
+    e.preventDefault(); st.pLocked=!st.pLocked;
+  });
+  document.getElementById('main-wrap').addEventListener('mouseleave',()=>{
+    st.mx=-1;st.my=-1;st.drag=false;document.getElementById('tt').style.display='none';
+  });
+  window.addEventListener('mouseup',()=>st.drag=false);
+  document.getElementById('main-wrap').addEventListener('wheel',e=>{
+    e.preventDefault();
+    if(e.ctrlKey||e.metaKey){
+      const f=e.deltaY<0?1.15:.87;
+      st.barW=Math.round(Math.min(180,Math.max(28,st.barW*f)));
+    }else if(e.shiftKey){
+      st.rowH=Math.max(7,Math.min(22,st.rowH+(e.deltaY<0?1:-1)));
+    }else{
+      st.scrollX=Math.max(0,st.scrollX+Math.sign(e.deltaY)*3);
+    }
+  },{passive:false});
+  window.addEventListener('resize',resize);
+  document.getElementById('btn-reset').addEventListener('click',()=>{
+    st.scrollX=0;st.barW=84;st.rowH=13;st.pLocked=false;
+  });
+  const pbtn=document.getElementById('btn-pause');
+  pbtn.addEventListener('click',()=>{
+    st.paused=!st.paused;
+    pbtn.textContent=st.paused?'▶ Resume':'⏸ Pause';
+    document.getElementById('dot').className=st.paused?'off':'live';
+  });
+  document.getElementById('sel-mode').addEventListener('change',e=>st.mode=e.target.value);
+  window.addEventListener('keydown',e=>{
+    if(e.target.tagName==='SELECT'||e.target.tagName==='INPUT') return;
+    if(e.key==='ArrowLeft')  {st.scrollX+=3;}
+    if(e.key==='ArrowRight') {st.scrollX=Math.max(0,st.scrollX-3);}
+    if(e.key==='0')          {st.scrollX=0;st.pLocked=false;}
+    if(e.key==='+'||e.key==='=') st.barW=Math.min(180,st.barW+8);
+    if(e.key==='-')              st.barW=Math.max(28,st.barW-8);
+    if(e.key===' ')         {e.preventDefault();st.paused=!st.paused;document.getElementById('dot').className=st.paused?'off':'live';}
+  });
+}
+
+// ═══════════════════════════════════
+// LOOP
+// ═══════════════════════════════════
+let frame=0;
+function loop() {
+  simTick();
+  renderMain();
+  renderDelta();
+  frame++;
+  if(frame%5===0){ renderDOM(); updateToolbar(); updateTT(); }
+  requestAnimationFrame(loop);
+}
+
+// ═══════════════════════════════════
+// INIT
+// ═══════════════════════════════════
+function init() {
+  resize();
+  const hist=sim.history(65);
+  st.bars=hist; st.price=sim.price;
+  st.sesOpen=hist[0]?.open||BASE;
+  st.sesHi=Math.max(...hist.map(b=>b.high));
+  st.sesLo=Math.min(...hist.map(b=>b.low));
+  st.live=sim.openBar(sim.barTime);
+  setupEvents();
+  loop();
+}
+
+window.addEventListener('load',init);
+// Also kick immediately if already loaded
+if(document.readyState==='complete') init();
+</script>
