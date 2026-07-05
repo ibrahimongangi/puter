@@ -180,6 +180,56 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
   border:1px solid var(--bdr2);border-radius:6px;padding:9px 16px;font-size:11px;z-index:1000;
   display:none;box-shadow:0 8px 30px rgba(0,0,0,.6)}
 #toast.up{border-color:var(--green)}#toast.dn{border-color:var(--red)}
+
+/* ── Bracket ── */
+.brk{display:flex;flex-direction:column;gap:6px;background:var(--surf2);border:1px solid var(--bdr);border-radius:5px;padding:8px}
+.brk-tog{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted);cursor:pointer}
+.brk-tog input{accent-color:var(--blue)}
+.brk-fields{display:none;flex-direction:column;gap:5px}
+.brk-fields.show{display:flex}
+.brk-f{display:flex;align-items:center;gap:6px;font-size:9px;color:var(--muted)}
+.brk-f span{width:64px}
+.brk-f input{flex:1;background:var(--surf3);border:1px solid var(--bdr);color:var(--text);padding:4px 6px;border-radius:3px;font:inherit;font-size:10px;text-align:center}
+.brk-f em{font-style:normal;color:var(--muted2);width:28px}
+
+/* ── Strategy editor ── */
+#bt-code{width:100%;height:150px;background:#06090f;border:1px solid var(--bdr);color:#c8f0d8;
+  padding:7px;border-radius:4px;font-family:'Cascadia Code',monospace;font-size:10px;line-height:1.5;resize:vertical;white-space:pre}
+#bt-code:focus{outline:1px solid var(--blue)}
+.bt-note code{background:var(--surf3);padding:1px 3px;border-radius:2px;color:var(--blue)}
+
+/* ── Account mode coloring ── */
+#sel-acct[data-m="real"]{border-color:var(--red);color:var(--red);background:rgba(255,72,88,.08)}
+#sel-acct[data-m="testnet"]{border-color:var(--amber);color:var(--amber)}
+
+/* ── Modal ── */
+#modal-bg{position:fixed;inset:0;background:rgba(4,6,10,.72);z-index:2000;display:none;align-items:center;justify-content:center}
+#modal-bg.show{display:flex}
+#modal{width:440px;max-width:92vw;max-height:88vh;overflow-y:auto;background:var(--surf);border:1px solid var(--bdr2);border-radius:10px;box-shadow:0 24px 70px rgba(0,0,0,.7)}
+.modal-hd{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--bdr)}
+#modal-title{font-size:13px;font-weight:700;letter-spacing:.5px}
+.modal-x{cursor:pointer;color:var(--muted);font-size:15px;padding:2px 6px}
+.modal-x:hover{color:var(--text)}
+.modal-body{padding:16px 18px;display:flex;flex-direction:column;gap:12px;font-size:11px;line-height:1.5}
+.mf{display:flex;flex-direction:column;gap:4px}
+.mf label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.mf input{background:var(--surf3);border:1px solid var(--bdr);color:var(--text);padding:8px 10px;border-radius:5px;font:inherit;font-size:11px}
+.mf input:focus{outline:1px solid var(--blue)}
+.m-warn{background:rgba(255,72,88,.09);border:1px solid rgba(255,72,88,.35);border-radius:6px;padding:10px 12px;color:#ffb3ba;font-size:10px;line-height:1.55}
+.m-warn b{color:var(--red)}
+.m-ok{background:rgba(0,217,126,.08);border:1px solid rgba(0,217,126,.3);border-radius:6px;padding:9px 12px;color:#8ff0c4;font-size:10px;line-height:1.5}
+.m-btn{padding:10px;border:none;border-radius:6px;cursor:pointer;font:inherit;font-size:11px;font-weight:700;letter-spacing:.4px}
+.m-btn.primary{background:var(--blue);color:#04121a}
+.m-btn.danger{background:var(--red);color:#160406}
+.m-btn.ghost{background:var(--surf3);color:var(--text);border:1px solid var(--bdr)}
+.m-btn:hover{filter:brightness(1.12)}
+.m-row{display:flex;gap:8px}
+.m-row .m-btn{flex:1}
+.m-check{display:flex;align-items:flex-start;gap:8px;font-size:10px;color:var(--muted);cursor:pointer;line-height:1.5}
+.m-check input{margin-top:2px;accent-color:var(--red)}
+.m-status{font-size:10px;padding:6px 0}
+.m-mono{font-family:'Cascadia Code',monospace;font-size:10px;color:var(--muted)}
+.m-link{color:var(--blue);text-decoration:none}.m-link:hover{text-decoration:underline}
 </style>
 </head>
 <body>
@@ -215,6 +265,13 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
       <button class="mtab active" data-mode="live">Live</button>
       <button class="mtab" data-mode="replay">Replay</button>
     </div>
+    <span class="sep"></span>
+    <select class="ctl" id="sel-acct" title="Trading account">
+      <option value="paper">📝 Paper</option>
+      <option value="testnet">🧪 Testnet</option>
+      <option value="real">🔴 Real $</option>
+    </select>
+    <button class="ctl" id="btn-keys" title="API credentials">🔑 Keys</button>
     <button class="ctl ml" id="btn-style" title="Toggle footprint / candlestick">Footprint</button>
     <button class="ctl" id="btn-reset">⟳ Reset</button>
   </div>
@@ -282,6 +339,14 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
           </div>
           <div class="qpreset" id="q-preset"></div>
 
+          <div class="brk">
+            <label class="brk-tog"><input type="checkbox" id="brk-on"> Bracket (auto SL / TP)</label>
+            <div class="brk-fields" id="brk-fields">
+              <div class="brk-f"><span>Stop-loss</span><input type="number" id="brk-sl" value="20" min="0" step="1"><em>ticks</em></div>
+              <div class="brk-f"><span>Take-profit</span><input type="number" id="brk-tp" value="40" min="0" step="1"><em>ticks</em></div>
+            </div>
+          </div>
+
           <div class="tp-buysell">
             <button class="bigbtn buy" id="btn-buy">BUY / LONG</button>
             <button class="bigbtn sell" id="btn-sell">SELL / SHORT</button>
@@ -318,6 +383,11 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
             <label>Qty per trade</label>
             <input type="number" id="bt-qty" value="0.25" step="0.01" min="0">
           </div>
+          <div class="bt-field" id="bt-editor-wrap" style="display:none">
+            <label>Strategy code · run(bars, ctx)</label>
+            <textarea id="bt-code" spellcheck="false"></textarea>
+            <div class="bt-note" style="margin-top:2px">ctx: <code>pos()</code> 0/1/-1 · <code>enter('buy'|'sell', price, time, barIndex)</code> · <code>exit(price, time)</code> · <code>entryBar()</code>. Each bar has open/high/low/close, volume, buyVol, sellVol, delta, cvdClose, poc.</div>
+          </div>
           <button class="bt-run" id="bt-run">▶ Run Backtest</button>
           <div id="bt-progress"></div>
           <canvas id="bt-equity"></canvas>
@@ -341,6 +411,14 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
 
 <div id="tt"></div>
 <div id="toast"></div>
+
+<!-- Credentials / settings modal -->
+<div id="modal-bg">
+  <div id="modal">
+    <div class="modal-hd"><span id="modal-title">API Credentials</span><span class="modal-x" id="modal-close">✕</span></div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
 
 <script>
 'use strict';
@@ -501,12 +579,13 @@ class Engine {
    PAPER BROKER
    ═══════════════════════════════════════════════ */
 class Broker {
-  constructor(bal){this.start=bal;this.cash=bal;this.posQty=0;this.avg=0;this.realized=0;this.orders=[];this.log=[];this._oid=1;this.onChange=null;}
-  get equity(){return this.cash+this.realized;} // realized folded into cash conceptually; unreal added live
+  constructor(bal){this.start=bal;this.cash=bal;this.posQty=0;this.avg=0;this.realized=0;this.orders=[];this.log=[];this.fills=[];this._oid=1;this._oco=1;this.onChange=null;}
+  get equity(){return this.cash;} // realized P&L is already folded into cash; unrealized added by the UI
   unreal(mkt){return this.posQty===0?0:(mkt-this.avg)*this.posQty;}
   _fill(side,qty,price,tag){
     const dir=side==='buy'?1:-1,q=dir*qty;
-    if(this.posQty===0||Math.sign(this.posQty)===Math.sign(q)){
+    const wasFlat=this.posQty===0, closing=!wasFlat&&Math.sign(this.posQty)!==Math.sign(q);
+    if(wasFlat||Math.sign(this.posQty)===Math.sign(q)){
       // add / open
       this.avg=(this.avg*Math.abs(this.posQty)+price*qty)/(Math.abs(this.posQty)+qty);
       this.posQty+=q;
@@ -521,29 +600,140 @@ class Broker {
       else if(rem>0){this.avg=price;} // flipped: new avg = fill price
       this._logClose(side,closeQty,price,pnl,tag);
     }
+    // chart marker: mark entries (opening/adding) and exits (closing/flipping)
+    this.fills.push({t:Date.now(),side,price,qty,kind:closing?'exit':'entry',tag:tag||''});
+    if(this.fills.length>200)this.fills.shift();
     this.log.unshift({t:Date.now(),side,qty,price,tag:tag||'',pnl:null});
     if(this.log.length>40)this.log.pop();
+    if(this.posQty===0)this._cancelBrackets(); // flat -> clear any resting protective orders
     if(this.onChange)this.onChange();
   }
   _logClose(side,qty,price,pnl,tag){this.log.unshift({t:Date.now(),side:side+' (close)',qty,price,tag:tag||'',pnl});if(this.log.length>40)this.log.pop();}
   market(side,qty,mkt,tag){if(qty<=0)return;this._fill(side,qty,mkt,tag||'MKT');}
-  place(type,side,qty,trigger){this.orders.push({id:this._oid++,type,side,qty,trigger});if(this.onChange)this.onChange();}
+  place(type,side,qty,trigger,oco){this.orders.push({id:this._oid++,type,side,qty,trigger,oco:oco||null});if(this.onChange)this.onChange();}
   cancel(id){this.orders=this.orders.filter(o=>o.id!==id);if(this.onChange)this.onChange();}
-  flatten(mkt){if(this.posQty!==0)this.market(this.posQty>0?'sell':'buy',Math.abs(this.posQty),mkt,'FLAT');}
+  _cancelBrackets(){const before=this.orders.length;this.orders=this.orders.filter(o=>!o.oco);if(before!==this.orders.length&&this.onChange)this.onChange();}
+  flatten(mkt){if(this.posQty!==0)this.market(this.posQty>0?'sell':'buy',Math.abs(this.posQty),mkt,'FLAT');else this._cancelBrackets();}
   reverse(mkt){const q=Math.abs(this.posQty);if(q===0)return;const side=this.posQty>0?'sell':'buy';this.market(side,q*2,mkt,'REV');}
+  // attach a protective bracket (OCO stop-loss + take-profit) to the current position
+  bracket(slPrice,tpPrice){
+    if(this.posQty===0)return;
+    this._cancelBrackets();
+    const exitSide=this.posQty>0?'sell':'buy',qty=Math.abs(this.posQty),g=this._oco++;
+    if(slPrice)this.place('stop',exitSide,qty,slPrice,g);   // stop-loss
+    if(tpPrice)this.place('limit',exitSide,qty,tpPrice,g);  // take-profit
+  }
   // check working orders against a trade tick
   onTick(price){
     if(!this.orders.length)return;
-    const still=[];
+    const still=[];let filledOco=null;
     for(const o of this.orders){
       let hit=false;
       if(o.type==='limit')hit=(o.side==='buy'&&price<=o.trigger)||(o.side==='sell'&&price>=o.trigger);
       else if(o.type==='stop')hit=(o.side==='buy'&&price>=o.trigger)||(o.side==='sell'&&price<=o.trigger);
-      if(hit){this._fill(o.side,o.qty,o.trigger,o.type.toUpperCase());}
+      if(hit){this._fill(o.side,o.qty,o.trigger,o.oco?(o.type==='stop'?'STOP-LOSS':'TAKE-PROFIT'):o.type.toUpperCase());if(o.oco)filledOco=o.oco;}
       else still.push(o);
     }
-    if(still.length!==this.orders.length){this.orders=still;if(this.onChange)this.onChange();}
+    // OCO: one leg filled -> cancel its sibling
+    let final=filledOco!=null?still.filter(o=>o.oco!==filledOco):still;
+    if(final.length!==this.orders.length){this.orders=final;if(this.onChange)this.onChange();}
   }
+}
+
+/* ═══════════════════════════════════════════════
+   LIVE BINANCE BROKER (testnet + real, signed REST)
+   Same interface as Broker. Conditional orders (limit/
+   stop/bracket) are monitored locally and execute as REAL
+   market orders when triggered — so only well-defined MARKET
+   params are ever sent, and stops only work while open.
+   ═══════════════════════════════════════════════ */
+const BINANCE_BASE={testnet:'https://testnet.binance.vision',real:'https://api.binance.com'};
+const _enc=new TextEncoder();
+async function hmacSHA256(secret,msg){
+  const key=await crypto.subtle.importKey('raw',_enc.encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+  const sig=await crypto.subtle.sign('HMAC',key,_enc.encode(msg));
+  return [...new Uint8Array(sig)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+class LiveBinance {
+  constructor(mode,sym,creds){
+    this.mode=mode;this.base=BINANCE_BASE[mode];this.sym=sym.toUpperCase();
+    this.key=creds.key;this.secret=creds.secret;
+    this.posQty=0;this.avg=0;this.realized=0;this.cash=0;this.quoteFree=0;this.baseFree=0;
+    this.orders=[];this.log=[];this.fills=[];this._oid=1;this._oco=1;this.onChange=null;
+    this.stepSize=0;this.tickSize=0;this.minNotional=0;this.ready=false;this.baseAsset='';this.quoteAsset='';
+  }
+  get equity(){return this.cash;} // real quote-asset balance
+  unreal(mkt){return this.posQty===0?0:(mkt-this.avg)*this.posQty;}
+  async _signed(method,path,params={}){
+    const qs=new URLSearchParams({...params,timestamp:Date.now(),recvWindow:5000}).toString();
+    const sig=await hmacSHA256(this.secret,qs);
+    const r=await fetch(`${this.base}${path}?${qs}&signature=${sig}`,{method,headers:{'X-MBX-APIKEY':this.key}});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(j.msg||('HTTP '+r.status));
+    return j;
+  }
+  async connect(){
+    // public exchangeInfo for filters
+    const info=await fetch(`${this.base}/api/v3/exchangeInfo?symbol=${this.sym}`).then(r=>r.json());
+    const s=info.symbols&&info.symbols[0];if(!s)throw new Error('symbol not on '+this.mode);
+    this.baseAsset=s.baseAsset;this.quoteAsset=s.quoteAsset;
+    for(const f of s.filters){
+      if(f.filterType==='LOT_SIZE')this.stepSize=+f.stepSize;
+      if(f.filterType==='PRICE_FILTER')this.tickSize=+f.tickSize;
+      if(f.filterType==='NOTIONAL')this.minNotional=+f.minNotional;
+      if(f.filterType==='MIN_NOTIONAL'&&!this.minNotional)this.minNotional=+f.minNotional;
+    }
+    await this.refreshBalances(); // also validates key/secret (signed call)
+    this.ready=true;if(this.onChange)this.onChange();
+  }
+  async refreshBalances(){
+    const acc=await this._signed('GET','/api/v3/account');
+    const bal=a=>{const b=acc.balances.find(x=>x.asset===a);return b?+b.free:0;};
+    this.quoteFree=bal(this.quoteAsset);this.baseFree=bal(this.baseAsset);this.cash=this.quoteFree;
+    if(this.onChange)this.onChange();
+  }
+  _roundStep(qty){if(!this.stepSize)return qty;const n=Math.floor(qty/this.stepSize)*this.stepSize;const dec=(this.stepSize.toString().split('.')[1]||'').length;return +n.toFixed(dec);}
+  _applyFill(side,qty,price,tag){
+    const dir=side==='buy'?1:-1,q=dir*qty;
+    const closing=this.posQty!==0&&Math.sign(this.posQty)!==Math.sign(q);
+    if(this.posQty===0||Math.sign(this.posQty)===Math.sign(q)){this.avg=(this.avg*Math.abs(this.posQty)+price*qty)/(Math.abs(this.posQty)+qty);this.posQty+=q;}
+    else{const cq=Math.min(qty,Math.abs(this.posQty));const pnl=(price-this.avg)*Math.sign(this.posQty)*cq;this.realized+=pnl;const rem=qty-cq;this.posQty+=q;if(Math.abs(this.posQty)<1e-9){this.posQty=0;this.avg=0;}else if(rem>0)this.avg=price;this.log.unshift({t:Date.now(),side:side+' (close)',qty:cq,price,tag,pnl});}
+    this.fills.push({t:Date.now(),side,price,qty,kind:closing?'exit':'entry',tag});if(this.fills.length>200)this.fills.shift();
+    this.log.unshift({t:Date.now(),side,qty,price,tag,pnl:null});if(this.log.length>40)this.log.pop();
+    if(this.onChange)this.onChange();
+  }
+  async _sendMarket(side,qty,tag){
+    const rq=this._roundStep(qty);if(rq<=0){toast('Qty below lot step','dn');return;}
+    try{
+      const res=await this._signed('POST','/api/v3/order',{symbol:this.sym,side:side.toUpperCase(),type:'MARKET',quantity:rq});
+      // average fill price from fills[]
+      let cost=0,filled=0;(res.fills||[]).forEach(f=>{cost+=(+f.price)*(+f.qty);filled+=+f.qty;});
+      const px=filled?cost/filled:st.price;const fq=filled||rq;
+      this._applyFill(side,fq,px,tag||'MKT');
+      toast(`${this.mode.toUpperCase()} ${side.toUpperCase()} ${fq} @ ${fmtP(px)}`,side==='buy'?'up':'dn');
+      this.refreshBalances().catch(()=>{});
+    }catch(e){toast('Order rejected: '+e.message,'dn');}
+  }
+  market(side,qty,mkt,tag){if(qty<=0)return;return this._sendMarket(side,qty,tag);}
+  place(type,side,qty,trigger,oco){this.orders.push({id:this._oid++,type,side,qty,trigger,oco:oco||null,local:true});if(this.onChange)this.onChange();}
+  cancel(id){this.orders=this.orders.filter(o=>o.id!==id);if(this.onChange)this.onChange();}
+  _cancelBrackets(){const b=this.orders.length;this.orders=this.orders.filter(o=>!o.oco);if(b!==this.orders.length&&this.onChange)this.onChange();}
+  flatten(mkt){if(this.posQty!==0)this._sendMarket(this.posQty>0?'sell':'buy',Math.abs(this.posQty),'FLAT');else this._cancelBrackets();}
+  reverse(mkt){const q=Math.abs(this.posQty);if(q===0)return;this._sendMarket(this.posQty>0?'sell':'buy',q*2,'REV');}
+  bracket(sl,tp){if(this.posQty===0)return;this._cancelBrackets();const side=this.posQty>0?'sell':'buy',qty=Math.abs(this.posQty),g=this._oco++;if(sl)this.place('stop',side,qty,sl,g);if(tp)this.place('limit',side,qty,tp,g);}
+  onTick(price){ // local monitoring -> real market on trigger
+    if(!this.orders.length)return;const still=[];let firedOco=null;
+    for(const o of this.orders){
+      let hit=false;
+      if(o.type==='limit')hit=(o.side==='buy'&&price<=o.trigger)||(o.side==='sell'&&price>=o.trigger);
+      else if(o.type==='stop')hit=(o.side==='buy'&&price>=o.trigger)||(o.side==='sell'&&price<=o.trigger);
+      if(hit){this._sendMarket(o.side,o.qty,o.oco?(o.type==='stop'?'STOP-LOSS':'TAKE-PROFIT'):o.type.toUpperCase());if(o.oco)firedOco=o.oco;}
+      else still.push(o);
+    }
+    let fin=firedOco!=null?still.filter(o=>o.oco!==firedOco):still;
+    if(fin.length!==this.orders.length){this.orders=fin;if(this.onChange)this.onChange();}
+  }
+  close(){this.ready=false;}
 }
 
 /* ═══════════════════════════════════════════════
@@ -598,6 +788,26 @@ const STRATS = {
         else if(ctx.pos()<0&&b.close>b.open&&rBuy>=1.5){ctx.exit(b.close,b.time);}
       }
     }
+  },
+  custom:{
+    name:'✎ Custom (editor)',
+    desc:'Write your own strategy in the editor below, then Run. It is compiled as run(bars, ctx).',
+    code:`// Example: buy when 3 rising-delta bars stack, exit after 5 bars
+for(let i=3;i<bars.length;i++){
+  const b=bars[i];
+  const up = bars[i-1].delta>0 && bars[i-2].delta>0 && bars[i-3].delta>0;
+  const dn = bars[i-1].delta<0 && bars[i-2].delta<0 && bars[i-3].delta<0;
+  if(ctx.pos()===0){
+    if(up) ctx.enter('buy', b.close, b.time, i);
+    else if(dn) ctx.enter('sell', b.close, b.time, i);
+  } else if(i - ctx.entryBar() >= 5){
+    ctx.exit(b.close, b.time);
+  }
+}`,
+    run(bars,ctx){
+      if(!this._compiled)throw new Error('No compiled code');
+      this._compiled(bars,ctx);
+    }
   }
 };
 
@@ -644,7 +854,12 @@ const st={
   // replay
   replayTrades:[],replayIdx:0,replayPlaying:false,replaySpeed:5,replayLoaded:false,
   connStatus:'',
+  // accounts / live
+  acct:'paper',            // paper | testnet | real
+  paperBroker:null,        // preserved paper Broker instance
+  creds:{testnet:{key:'',secret:''},real:{key:'',secret:''}},
 };
+const LS_KEY='ofterm_v1';
 
 /* ═══════════════════════════════════════════════
    CANVAS
@@ -779,7 +994,31 @@ function renderMain(){
   updateRange();const s=startIdx(),e=s+visBars();const vp=buildVP(s,e);
   drawGrid(ctx);drawVWAP(ctx,s,e);
   for(let i=s;i<=e;i++){const b=getBar(i);if(!b)continue;st.style==='fp'?drawFP(ctx,b,i):drawCD(ctx,b,i);}
+  drawMarkers(ctx,s,e);
   drawVP(ctx,vp);drawPxAxis(ctx);drawTimeAxis(ctx,s,e);drawXhair(ctx);
+}
+
+// Entry/exit arrows from broker fills, placed at the bar their timestamp falls in
+function drawMarkers(ctx,s,e){
+  if(!st.broker||!st.broker.fills.length)return;
+  const a=allBars();if(!a.length)return;
+  for(const f of st.broker.fills){
+    // find bar index whose time-bucket contains the fill
+    const bt=Math.floor(f.t/st.tf)*st.tf;
+    let idx=-1;for(let i=Math.max(0,s-1);i<=e&&i<a.length;i++){if(a[i].time===bt){idx=i;break;}}
+    if(idx<0){if(a[a.length-1]&&bt>=a[a.length-1].time)idx=a.length-1;else continue;}
+    const x=barX(idx),y=pToY(f.price);
+    if(x<PAD_L||x>vpX||y<0||y>chartH)continue;
+    const up=f.side==='buy',col=up?C.green:C.red;
+    ctx.fillStyle=col;ctx.strokeStyle=C.bg;ctx.lineWidth=1.5;
+    const d=up?1:-1,ty=y+d*9; // arrow sits just outside the price
+    ctx.beginPath();
+    ctx.moveTo(x,y+d*2);
+    ctx.lineTo(x-5,ty);
+    ctx.lineTo(x+5,ty);
+    ctx.closePath();ctx.fill();ctx.stroke();
+    if(f.kind==='exit'){ctx.strokeStyle=C.amber;ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.stroke();}
+  }
 }
 
 function renderDelta(){
@@ -976,6 +1215,12 @@ async function doBacktest(){
   const nBars=+document.getElementById('bt-bars').value;
   const qty=+document.getElementById('bt-qty').value||0.25;
   try{
+    // Compile custom strategy code if selected
+    if(stratKey==='custom'){
+      const code=document.getElementById('bt-code').value;
+      try{STRATS.custom._compiled=new Function('bars','ctx',code);}
+      catch(err){prog.textContent='';toast('Compile error: '+err.message,'dn');document.getElementById('bt-run').disabled=false;return;}
+    }
     // Build footprint bars from paged aggTrades (real order flow), else fall back to klines
     let bars=await buildHistoricalBars(nBars,prog);
     if(bars.length<10)throw new Error('not enough history');
@@ -1077,6 +1322,127 @@ function applySymbol(sym){
 }
 
 /* ═══════════════════════════════════════════════
+   PERSISTENCE (localStorage)
+   ═══════════════════════════════════════════════ */
+function saveState(){
+  try{
+    const p=st.paperBroker;
+    localStorage.setItem(LS_KEY,JSON.stringify({
+      sym:st.sym,tf:st.tf,tick:st.tick,style:st.style,barW:st.barW,rowH:st.rowH,
+      creds:st.creds,
+      customCode:document.getElementById('bt-code')?.value||'',
+      paper:p?{cash:p.cash,posQty:p.posQty,avg:p.avg,realized:p.realized,log:p.log.slice(0,40)}:null,
+    }));
+  }catch(e){}
+}
+function loadState(){
+  try{
+    const s=JSON.parse(localStorage.getItem(LS_KEY)||'null');if(!s)return null;
+    if(s.creds)st.creds=s.creds;return s;
+  }catch(e){return null;}
+}
+
+/* ═══════════════════════════════════════════════
+   ACCOUNT SWITCHING
+   ═══════════════════════════════════════════════ */
+function setPaperUI(){document.getElementById('ac-eq').previousElementSibling.textContent=st.acct==='paper'?'Equity':'Balance ('+(st.broker.quoteAsset||'USDT')+')';}
+async function switchAccount(mode){
+  if(mode===st.acct){return;}
+  if(mode==='real'){const ok=await confirmRealEnable();if(!ok){document.getElementById('sel-acct').value=st.acct;return;}}
+  if(mode==='paper'){
+    st.acct='paper';st.broker=st.paperBroker;
+    st.broker.onChange=onBrokerChange;onBrokerChange();
+    markAcct();toast('Switched to Paper account','');
+    return;
+  }
+  // live: need creds
+  const cr=st.creds[mode];
+  if(!cr||!cr.key||!cr.secret){toast('Enter '+mode+' API keys first','dn');openKeysModal(mode);document.getElementById('sel-acct').value=st.acct;return;}
+  toast('Connecting to Binance '+mode+'…','');
+  const lb=new LiveBinance(mode,st.sym,cr);lb.onChange=onBrokerChange;
+  try{
+    await lb.connect();
+    st.acct=mode;st.broker=lb;onBrokerChange();markAcct();
+    toast(`Connected · ${mode.toUpperCase()} · ${lb.quoteFree.toFixed(2)} ${lb.quoteAsset} free`,'up');
+  }catch(e){
+    toast('Connect failed: '+e.message,'dn');
+    document.getElementById('sel-acct').value=st.acct;
+  }
+}
+function markAcct(){const s=document.getElementById('sel-acct');s.value=st.acct;s.dataset.m=st.acct;
+  document.getElementById('ac-eq').previousElementSibling.textContent=st.acct==='paper'?'Equity':'Balance';}
+function onBrokerChange(){updateAccount();renderOrders();saveState();}
+
+/* ═══════════════════════════════════════════════
+   MODALS + GUARDRAILS
+   ═══════════════════════════════════════════════ */
+function showModal(title,html){document.getElementById('modal-title').textContent=title;document.getElementById('modal-body').innerHTML=html;document.getElementById('modal-bg').classList.add('show');}
+function closeModal(){document.getElementById('modal-bg').classList.remove('show');}
+function openKeysModal(prefMode){
+  const mode=prefMode||(st.acct==='real'?'real':'testnet');
+  const cr=st.creds[mode]||{key:'',secret:''};
+  const testUrl='https://testnet.binance.vision/',realUrl='https://www.binance.com/en/my/settings/api-management';
+  showModal('API Credentials — '+mode.toUpperCase(),`
+    <div class="mf"><label>Environment</label>
+      <div class="m-row">
+        <button class="m-btn ${mode==='testnet'?'primary':'ghost'}" id="k-testnet">🧪 Testnet</button>
+        <button class="m-btn ${mode==='real'?'danger':'ghost'}" id="k-real">🔴 Real</button>
+      </div>
+    </div>
+    ${mode==='testnet'
+      ? `<div class="m-ok">Testnet uses <b>fake money</b> on the real Binance order API. Get free keys at <a class="m-link" href="${testUrl}" target="_blank">testnet.binance.vision</a> (log in with GitHub → Generate HMAC key).</div>`
+      : `<div class="m-warn"><b>REAL MONEY.</b> Create the key at <a class="m-link" href="${realUrl}" target="_blank">Binance API Management</a> with <b>only "Enable Spot Trading"</b>. <b>Disable withdrawals.</b> Restrict to your IP. Keys are stored in this browser's localStorage on this machine.</div>`}
+    <div class="mf"><label>API Key</label><input id="k-key" value="${cr.key||''}" autocomplete="off" spellcheck="false" placeholder="paste API key"></div>
+    <div class="mf"><label>API Secret</label><input id="k-secret" type="password" value="${cr.secret||''}" autocomplete="off" spellcheck="false" placeholder="paste API secret"></div>
+    <div class="m-mono">Base URL: ${BINANCE_BASE[mode]}</div>
+    <div class="m-row">
+      <button class="m-btn ghost" id="k-cancel">Cancel</button>
+      <button class="m-btn primary" id="k-save">Save keys</button>
+    </div>
+    <div class="m-status" id="k-status"></div>
+  `);
+  document.getElementById('k-testnet').onclick=()=>openKeysModal('testnet');
+  document.getElementById('k-real').onclick=()=>openKeysModal('real');
+  document.getElementById('k-cancel').onclick=closeModal;
+  document.getElementById('k-save').onclick=()=>{
+    const key=document.getElementById('k-key').value.trim(),secret=document.getElementById('k-secret').value.trim();
+    if(!key||!secret){document.getElementById('k-status').innerHTML='<span style="color:var(--red)">Both fields required</span>';return;}
+    st.creds[mode]={key,secret};saveState();closeModal();
+    toast(mode.toUpperCase()+' keys saved','up');
+  };
+}
+function confirmRealEnable(){
+  return new Promise(res=>{
+    showModal('⚠ Enable REAL-MONEY trading',`
+      <div class="m-warn"><b>This routes real orders against your live Binance account with real funds.</b> Market orders fill immediately at the best available price. Stops and brackets are monitored by this app locally and only fire while the terminal is open. Bugs, slippage, or connectivity loss can cause real losses. Only proceed if you accept full responsibility.</div>
+      <label class="m-check"><input type="checkbox" id="rc-1"> I understand I am trading real money and accept all risk.</label>
+      <label class="m-check"><input type="checkbox" id="rc-2"> My API key has withdrawals disabled and is trade-only.</label>
+      <div class="m-row">
+        <button class="m-btn ghost" id="rc-cancel">Cancel</button>
+        <button class="m-btn danger" id="rc-ok" disabled>Enable real trading</button>
+      </div>
+    `);
+    const c1=document.getElementById('rc-1'),c2=document.getElementById('rc-2'),ok=document.getElementById('rc-ok');
+    const upd=()=>ok.disabled=!(c1.checked&&c2.checked);c1.onchange=upd;c2.onchange=upd;
+    document.getElementById('rc-cancel').onclick=()=>{closeModal();res(false);};
+    ok.onclick=()=>{closeModal();res(true);};
+  });
+}
+// per-order typed confirmation for real money
+function confirmRealOrder(side,qty){
+  if(st.acct!=='real')return Promise.resolve(true);
+  return new Promise(res=>{
+    showModal('Confirm REAL '+side.toUpperCase(),`
+      <div class="m-warn">You are about to send a <b>REAL ${side.toUpperCase()}</b> market order for <b>${qty} ${st.broker.baseAsset||''}</b> (~${fmtUSD(qty*st.price)}) on your live Binance account.</div>
+      <div class="mf"><label>Type the quantity <b>${qty}</b> to confirm</label><input id="co-in" autocomplete="off" placeholder="${qty}"></div>
+      <div class="m-row"><button class="m-btn ghost" id="co-cancel">Cancel</button><button class="m-btn danger" id="co-ok">Send order</button></div>
+    `);
+    document.getElementById('co-cancel').onclick=()=>{closeModal();res(false);};
+    document.getElementById('co-ok').onclick=()=>{const v=document.getElementById('co-in').value.trim();if(+v!==+qty){toast('Quantity mismatch — cancelled','dn');closeModal();res(false);return;}closeModal();res(true);};
+  });
+}
+
+/* ═══════════════════════════════════════════════
    EVENTS
    ═══════════════════════════════════════════════ */
 function q(){return +document.getElementById('q-in').value||0;}
@@ -1090,11 +1456,12 @@ function setupEvents(){
   mw.addEventListener('wheel',e=>{e.preventDefault();if(e.ctrlKey||e.metaKey){st.barW=Math.round(clamp(st.barW*(e.deltaY<0?1.15:.87),28,200));}else if(e.shiftKey){st.rowH=clamp(st.rowH+(e.deltaY<0?1:-1),7,26);}else{st.scrollX=Math.max(0,st.scrollX+Math.sign(e.deltaY)*3);}},{passive:false});
   window.addEventListener('resize',resize);
 
-  document.getElementById('btn-reset').onclick=()=>{st.scrollX=0;st.barW=84;st.rowH=13;st.pLocked=false;};
-  document.getElementById('btn-style').onclick=e=>{st.style=st.style==='fp'?'cd':'fp';e.target.textContent=st.style==='fp'?'Footprint':'Candlestick';};
-  document.getElementById('sel-sym').onchange=e=>{applySymbol(e.target.value);if(st.mode==='live')startLive();else{st.eng=new Engine(st.tf,st.tick);loadReplay();}};
-  document.getElementById('sel-tf').onchange=e=>{st.tf=+e.target.value;if(st.eng)st.eng.reset(st.tf,st.tick);if(st.mode==='live')bootstrapHistory();else if(st.replayLoaded){st.eng=new Engine(st.tf,st.tick);st.replayIdx=0;}};
-  document.getElementById('sel-tick').onchange=e=>{st.tick=+e.target.value;if(st.eng)st.eng.reset(st.tf,st.tick);if(st.mode==='live')bootstrapHistory();else if(st.replayLoaded){st.eng=new Engine(st.tf,st.tick);st.replayIdx=0;}};
+  document.getElementById('btn-reset').onclick=()=>{st.scrollX=0;st.barW=84;st.rowH=13;st.pLocked=false;saveState();};
+  document.getElementById('btn-style').onclick=e=>{st.style=st.style==='fp'?'cd':'fp';e.target.textContent=st.style==='fp'?'Footprint':'Candlestick';saveState();};
+  document.getElementById('sel-sym').onchange=async e=>{const wasLive=st.acct!=='paper'?st.acct:null;applySymbol(e.target.value);if(st.mode==='live')startLive();else{st.eng=new Engine(st.tf,st.tick);loadReplay();}saveState();
+    if(wasLive){const cr=st.creds[wasLive];const lb=new LiveBinance(wasLive,st.sym,cr);lb.onChange=onBrokerChange;try{await lb.connect();st.broker=lb;onBrokerChange();toast('Reconnected '+wasLive+' · '+st.sym.toUpperCase(),'up');}catch(err){toast('Reconnect failed, back to Paper: '+err.message,'dn');st.acct='paper';st.broker=st.paperBroker;st.broker.onChange=onBrokerChange;markAcct();onBrokerChange();}}};
+  document.getElementById('sel-tf').onchange=e=>{st.tf=+e.target.value;if(st.eng)st.eng.reset(st.tf,st.tick);if(st.mode==='live')bootstrapHistory();else if(st.replayLoaded){st.eng=new Engine(st.tf,st.tick);st.replayIdx=0;}saveState();};
+  document.getElementById('sel-tick').onchange=e=>{st.tick=+e.target.value;if(st.eng)st.eng.reset(st.tf,st.tick);if(st.mode==='live')bootstrapHistory();else if(st.replayLoaded){st.eng=new Engine(st.tf,st.tick);st.replayIdx=0;}saveState();};
 
   document.querySelectorAll('.mtab').forEach(t=>t.onclick=()=>setMode(t.dataset.mode));
   document.querySelectorAll('.stab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.stab').forEach(x=>x.classList.toggle('active',x===t));document.querySelectorAll('.side-pane').forEach(p=>p.classList.toggle('active',p.dataset.pane===t.dataset.pane));});
@@ -1109,6 +1476,15 @@ function setupEvents(){
   document.getElementById('btn-rev').onclick=()=>{if(st.broker&&st.price&&st.broker.posQty!==0){st.broker.reverse(st.price);toast('Position reversed','');}};
   document.getElementById('ord-list').onclick=e=>{if(e.target.dataset.oid){st.broker.cancel(+e.target.dataset.oid);}};
 
+  // Bracket toggle
+  document.getElementById('brk-on').onchange=e=>document.getElementById('brk-fields').classList.toggle('show',e.target.checked);
+
+  // Account switching + keys
+  document.getElementById('sel-acct').onchange=e=>switchAccount(e.target.value);
+  document.getElementById('btn-keys').onclick=()=>openKeysModal();
+  document.getElementById('modal-close').onclick=closeModal;
+  document.getElementById('modal-bg').onclick=e=>{if(e.target.id==='modal-bg')closeModal();};
+
   // Replay controls
   document.getElementById('rp-play').onclick=()=>{if(!st.replayLoaded){loadReplay();return;}st.replayPlaying=!st.replayPlaying;document.getElementById('rp-play').textContent=st.replayPlaying?'⏸':'▶';};
   document.getElementById('rp-speed').onclick=()=>{const sp=[1,5,25,100];const i=(sp.indexOf(st.replaySpeed)+1)%sp.length;st.replaySpeed=sp[i];document.getElementById('rp-speed').textContent=sp[i]+'×';};
@@ -1117,8 +1493,11 @@ function setupEvents(){
 
   // Backtest
   const bs=document.getElementById('bt-strat');Object.entries(STRATS).forEach(([k,s])=>{const o=document.createElement('option');o.value=k;o.textContent=s.name;bs.appendChild(o);});
-  bs.onchange=()=>document.getElementById('bt-note').textContent=STRATS[bs.value].desc;
-  document.getElementById('bt-note').textContent=STRATS[bs.value].desc;
+  const syncStrat=()=>{const isCustom=bs.value==='custom';document.getElementById('bt-editor-wrap').style.display=isCustom?'flex':'none';document.getElementById('bt-note').textContent=STRATS[bs.value].desc;};
+  bs.onchange=syncStrat;
+  document.getElementById('bt-code').value=STRATS.custom.code;
+  syncStrat();
+  document.getElementById('bt-code').addEventListener('input',saveState);
   document.getElementById('bt-run').onclick=doBacktest;
 
   // Keyboard
@@ -1134,12 +1513,30 @@ function setupEvents(){
     else if(e.key==='-')st.barW=Math.max(28,st.barW-8);
   });
 }
-function submitMarket(side){if(!st.broker||!st.price)return;const qty=q();if(qty<=0)return;st.broker.market(side,qty,st.price);toast(`${side.toUpperCase()} ${qty} @ ${fmtP(st.price)}`,side==='buy'?'up':'dn');}
-function submitOrder(side){
+async function submitMarket(side){
+  if(!st.broker||!st.price)return;const qty=q();if(qty<=0)return;
+  if(st.acct==='real'){const ok=await confirmRealOrder(side,qty);if(!ok)return;}
+  await st.broker.market(side,qty,st.price);
+  if(st.acct==='paper')toast(`${side.toUpperCase()} ${qty} @ ${fmtP(st.price)}`,side==='buy'?'up':'dn');
+  applyBracketIfOn();
+}
+async function submitOrder(side){
   if(!st.broker||!st.price)return;const qty=q();if(qty<=0){toast('Enter a quantity','dn');return;}
   if(st.ordType==='market'){submitMarket(side);return;}
   const trig=+document.getElementById('ord-price').value;if(!trig){toast('Enter a trigger price','dn');return;}
   st.broker.place(st.ordType,side,qty,trig);toast(`${st.ordType.toUpperCase()} ${side} ${qty} @ ${fmtP(trig)} placed`,'');
+}
+// attach protective bracket after an entry, if enabled and now holding
+function applyBracketIfOn(){
+  if(!document.getElementById('brk-on').checked)return;
+  if(!st.broker||st.broker.posQty===0)return;
+  const slT=+document.getElementById('brk-sl').value||0, tpT=+document.getElementById('brk-tp').value||0;
+  if(!slT&&!tpT)return;
+  const ref=st.broker.avg||st.price, long=st.broker.posQty>0;
+  const sl=slT>0?(long?ref-slT*st.tick:ref+slT*st.tick):0;
+  const tp=tpT>0?(long?ref+tpT*st.tick:ref-tpT*st.tick):0;
+  st.broker.bracket(sl,tp);
+  toast(`Bracket set · SL ${sl?fmtP(sl):'—'} / TP ${tp?fmtP(tp):'—'}`,'');
 }
 
 /* ═══════════════════════════════════════════════
@@ -1160,9 +1557,27 @@ function loop(){
 function init(){
   resize();
   window.st=st; // expose for debugging / automated checks
-  st.broker=new Broker(100000);st.broker.onChange=()=>{updateAccount();renderOrders();};
-  applySymbol('btcusdt');
+  const saved=loadState();
+  // Paper broker (restore prior state if present)
+  st.paperBroker=new Broker(100000);
+  if(saved&&saved.paper){const p=saved.paper;Object.assign(st.paperBroker,{cash:p.cash,posQty:p.posQty,avg:p.avg,realized:p.realized,log:p.log||[]});}
+  st.broker=st.paperBroker;st.broker.onChange=onBrokerChange;
+  // Restore view/settings
+  if(saved){
+    if(saved.style){st.style=saved.style;}
+    if(saved.barW)st.barW=saved.barW;if(saved.rowH)st.rowH=saved.rowH;
+  }
+  const startSym=(saved&&SYMBOLS[saved.sym])?saved.sym:'btcusdt';
+  document.getElementById('sel-sym').value=startSym;
+  applySymbol(startSym);
+  if(saved&&saved.tf){st.tf=saved.tf;document.getElementById('sel-tf').value=saved.tf;}
+  if(saved&&saved.tick){st.tick=saved.tick;}
   setupEvents();
+  // restore tick selection (options built in applySymbol)
+  if(saved&&saved.tick){const ts=document.getElementById('sel-tick');if([...ts.options].some(o=>+o.value===saved.tick))ts.value=saved.tick;}
+  if(saved&&saved.customCode)document.getElementById('bt-code').value=saved.customCode;
+  document.getElementById('btn-style').textContent=st.style==='fp'?'Footprint':'Candlestick';
+  markAcct();
   renderOrders();
   startLive();
   loop();
